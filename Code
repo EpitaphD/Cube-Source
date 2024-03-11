@@ -1,0 +1,210 @@
+import pygame
+import sys
+
+class Cube:
+    def __init__(self, mass, position, velocity):
+        self.mass = mass
+        self.position = position
+        self.velocity = velocity
+
+    def update_position(self, time_step):
+        self.position += self.velocity * time_step
+
+    def update_velocity(self, acceleration, time_step):
+        self.velocity += acceleration * time_step
+
+pygame.init()
+
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Gravity")
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY = (200, 200, 200)
+
+mass_of_cube = 1000
+initial_position = [100, 100]
+initial_velocity = [0, 0]
+time_step = 0.1
+
+cube = Cube(mass_of_cube, pygame.Vector2(initial_position), pygame.Vector2(initial_velocity))
+clones = []
+
+panel_width = 200
+panel = pygame.Rect(SCREEN_WIDTH - panel_width, 0, panel_width, SCREEN_HEIGHT)
+
+gravity = pygame.Vector2(0, 0.5)
+repulsion = False
+repulsion_factor = 0.1
+
+gravity_enabled = True
+follow_mouse_enabled = True
+show_fps = False
+drawing = False
+
+last_clone_time = pygame.time.get_ticks()
+
+font = pygame.font.Font(None, 24)
+
+clock = pygame.time.Clock()
+
+clones_count_visible = False
+
+language = "English"
+
+def draw_clones_count():
+    clones_count_text = font.render(f"Clones count: {len(clones)}", True, BLACK)
+    clones_count_rect = clones_count_text.get_rect(bottomright=(SCREEN_WIDTH - 10, SCREEN_HEIGHT - 10))
+    screen.blit(clones_count_text, clones_count_rect)
+
+def draw_language():
+    language_text = font.render(f"Language: {language}", True, BLACK)
+    language_rect = language_text.get_rect(midtop=(SCREEN_WIDTH // 2, 10))
+    screen.blit(language_text, language_rect)
+
+def draw_buttons(language):
+    if language == "English":
+        gravity_text = font.render("Toggle gravity", True, BLACK)
+        follow_mouse_text = font.render("Toggle follow mouse", True, BLACK)
+        create_clone_text = font.render("Create clone", True, BLACK)
+        delete_clone_text = font.render("Delete clone", True, BLACK)
+        show_fps_text = font.render("Toggle FPS", True, BLACK)
+        create_clone_thousand_text = font.render("Create 1000 clones", True, BLACK)
+        delete_all_clones_text = font.render("Delete all clones", True, BLACK)
+        language_toggle_text = font.render("Switch language", True, BLACK)
+        repulsion_toggle_text = font.render("Toggle repulsion", True, BLACK)
+    else:
+        gravity_text = font.render("Включить гравитацию", True, BLACK)
+        follow_mouse_text = font.render("Включить преследование мыши", True, BLACK)
+        create_clone_text = font.render("Создать клон", True, BLACK)
+        delete_clone_text = font.render("Удалить клон", True, BLACK)
+        show_fps_text = font.render("Включить отображение FPS", True, BLACK)
+        create_clone_thousand_text = font.render("Создать 1000 клонов", True, BLACK)
+        delete_all_clones_text = font.render("Удалить всех клонов", True, BLACK)
+        language_toggle_text = font.render("Изменить язык", True, BLACK)
+        repulsion_toggle_text = font.render("Включить отталкивание", True, BLACK)
+
+    buttons = [
+        gravity_text, follow_mouse_text, create_clone_text, delete_clone_text,
+        show_fps_text, create_clone_thousand_text, delete_all_clones_text,
+        language_toggle_text, repulsion_toggle_text
+    ]
+
+    button_y = 20
+    for button in buttons:
+        screen.blit(button, (SCREEN_WIDTH - panel_width + 30, button_y))
+        button_y += 30
+
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if panel.collidepoint(event.pos):
+                if 20 <= event.pos[1] <= 45:
+                    gravity_enabled = not gravity_enabled
+                elif 50 <= event.pos[1] <= 75:
+                    follow_mouse_enabled = not follow_mouse_enabled
+                elif 80 <= event.pos[1] <= 105:
+                    if len(clones) < 1000:
+                        clones.append(Cube(mass_of_cube, pygame.Vector2(initial_position), pygame.Vector2(initial_velocity)))
+                elif 110 <= event.pos[1] <= 135:
+                    if clones:
+                        clones.pop()
+                elif 140 <= event.pos[1] <= 165:
+                    show_fps = not show_fps
+                elif 170 <= event.pos[1] <= 195:
+                    for _ in range(1000):
+                        clones.append(Cube(mass_of_cube, pygame.Vector2(initial_position), pygame.Vector2(initial_velocity)))
+                elif 200 <= event.pos[1] <= 225:
+                    clones.clear()
+                elif 230 <= event.pos[1] <= 255:
+                    if language == "English":
+                        language = "Русский"
+                    else:
+                        language = "English"
+                elif 260 <= event.pos[1] <= 285:
+                    repulsion = not repulsion 
+
+    mouse_pos = pygame.mouse.get_pos()
+
+    if follow_mouse_enabled and not drawing:
+        direction = pygame.Vector2(mouse_pos) - cube.position
+        if direction.length() != 0:  
+            direction.normalize_ip()
+            cube.velocity += direction * 0.1
+
+    if gravity_enabled:
+        cube.velocity += gravity
+
+    if cube.position.x < 0 or cube.position.x > SCREEN_WIDTH - 20:
+        cube.velocity.x *= -1
+    if cube.position.y < 0 or cube.position.y > SCREEN_HEIGHT - 20:
+        cube.velocity.y *= -1
+
+    if cube.position.x + 20 > SCREEN_WIDTH - panel_width:
+        if cube.position.y + 20 > panel.top or cube.position.y < panel.bottom:
+            cube.velocity.x *= -1
+
+    cube.update_position(time_step)
+
+    for clone in clones:
+        if follow_mouse_enabled and not drawing:
+            direction = pygame.Vector2(mouse_pos) - clone.position
+            if direction.length() != 0:  
+                direction.normalize_ip()
+                clone.velocity += direction * 0.1
+
+        if gravity_enabled:
+            clone.velocity += gravity
+
+        if repulsion:
+            for other_clone in clones:
+                if clone != other_clone:
+                    distance = clone.position.distance_to(other_clone.position)
+                    if distance < 20:
+                        direction = clone.position - other_clone.position
+                        if direction.length() != 0:  
+                            direction.normalize_ip()
+                            clone.velocity += direction * repulsion_factor  
+
+        if clone.position.x < 0 or clone.position.x > SCREEN_WIDTH - 20:
+            clone.velocity.x *= -1
+        if clone.position.y < 0 or clone.position.y > SCREEN_HEIGHT - 20:
+            clone.velocity.y *= -1
+
+        if clone.position.x + 20 > SCREEN_WIDTH - panel_width:
+            if clone.position.y + 20 > panel.top or clone.position.y < panel.bottom:
+                clone.velocity.x *= -1
+
+        clone.update_position(time_step)
+
+    screen.fill(WHITE)
+
+    for clone in clones:
+        pygame.draw.rect(screen, BLACK, pygame.Rect(clone.position.x, clone.position.y, 20, 20))
+
+    pygame.draw.rect(screen, BLACK, pygame.Rect(cube.position.x, cube.position.y, 20, 20))
+
+    pygame.draw.rect(screen, GRAY, panel)
+
+    draw_language()
+
+    draw_buttons(language)
+
+    if clones_count_visible:
+        draw_clones_count()
+
+    if show_fps:
+        fps_text = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
+        screen.blit(fps_text, (10, 10))
+
+    pygame.display.flip()
+
+    clock.tick(60)
+
+pygame.quit()
+sys.exit()
